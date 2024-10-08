@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+		<title>Babylon.js sample code</title>
+
+		<!-- Babylon.js -->
+		<!-- Delete all the other scripts and add only the following scripts -->
+		<script src="https://cdn.babylonjs.com/babylon.js"></script>
+		<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+		<script
+			src="https://webar-sdk.blippar.com/releases/2.0.5/webar-sdk-v2.0.5.min.js?license-key=9a6d7c4d-f763-463f-a265-cc89f51ff6c3"
+			webar-mode="marker-tracking"
+			auto-init="true"
+			auto-start="true"
+			rendering-engine="babylonjs"
+		></script>
+
+		<style>
+			html,
+			body {
+				overflow: hidden;
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				padding: 0;
+			}
+
+			#renderCanvas {
+				width: 100%;
+				height: 100%;
+				touch-action: none;
+			}
+
+			#canvasZone {
+				width: 100%;
+				height: 100%;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="canvasZone"><canvas id="renderCanvas"></canvas></div>
+		<script>
+			var canvas = document.getElementById("renderCanvas");
+
+			var startRenderLoop = function (engine, canvas) {
+				engine.runRenderLoop(function () {
+					if (sceneToRender && sceneToRender.activeCamera) {
+						sceneToRender.render();
+					}
+				});
+			};
+
+			var engine = null;
+			var scene = null;
+			var sceneToRender = null;
+			var createDefaultEngine = function () {
+				return new BABYLON.Engine(canvas, true, {
+					preserveDrawingBuffer: true,
+					stencil: true,
+					disableWebGL2Support: false,
+				});
+			};
+			var createScene = function () {
+				// This creates a basic Babylon Scene object (non-mesh)
+				var scene = new BABYLON.Scene(engine);
+
+				// This creates and positions a free camera (non-mesh)
+				var camera = new BABYLON.FreeCamera(
+					"camera1",
+					new BABYLON.Vector3(0, 5, -10),
+					scene
+				);
+
+				/*
+				// This targets the camera to scene origin
+				camera.setTarget(BABYLON.Vector3.Zero());
+
+				// This attaches the camera to the canvas
+				camera.attachControl(canvas, true);
+                */
+
+				// This creates a light, aiming 0,1,0 - to the sky (non-mesh)
+				var light = new BABYLON.HemisphericLight(
+					"light",
+					new BABYLON.Vector3(0, 1, 0),
+					scene
+				);
+
+				// Default intensity is 1. Let's dim the light a small amount
+				light.intensity = 0.7;
+
+				//
+				let webarMarkerMesh1 = new BABYLON.Mesh("webarMarkerMesh1", scene);
+
+				var webarMarkerMeshMap = [];
+
+				webarMarkerMeshMap.push({
+					markerId: "8386b6b1-d06b-4fa8-a1c0-eeca6ebf8c30",
+					markerMesh: webarMarkerMesh1,
+				});
+
+				BABYLON.SceneLoader.ImportMesh(
+					null,
+					"./models/",
+					"MaterialsVariantsShoe.glb",
+					scene,
+					function (meshes, particleSystems, skeletons) {
+						let xQuat = new BABYLON.Quaternion();
+						for (mesh of meshes) {
+							if (mesh.name !== "__root__") {
+								// Move the loaded models to webarMarkerMesh1
+								mesh.setParent(webarMarkerMesh1);
+								BABYLON.Quaternion.FromEulerAnglesToRef(Math.PI / 2, 0, 0, xQuat);
+								mesh.rotationQuaternion.multiplyInPlace(xQuat);
+								scaleByFactor(mesh, 6);
+							}
+						}
+					}
+				);
+
+				// Pass babylon canvas, scene, camera and webarStage mesh to WebarSdk to initialize surface tracking
+				WEBARSDK.InitBabylonJs(canvas, scene, camera, webarMarkerMeshMap);
+
+				return scene;
+			};
+			window.initFunction = async function () {
+				var asyncEngineCreation = async function () {
+					try {
+						return createDefaultEngine();
+					} catch (e) {
+						console.log(
+							"the available createEngine function failed. Creating the default engine instead"
+						);
+						return createDefaultEngine();
+					}
+				};
+
+				window.engine = await asyncEngineCreation();
+				if (!engine) throw "engine should not be null.";
+				startRenderLoop(engine, canvas);
+				window.scene = createScene();
+			};
+			initFunction().then(() => {
+				sceneToRender = scene;
+			});
+
+			// Resize
+			window.addEventListener("resize", function () {
+				engine.resize();
+			});
+		</script>
+	</body>
+</html>
